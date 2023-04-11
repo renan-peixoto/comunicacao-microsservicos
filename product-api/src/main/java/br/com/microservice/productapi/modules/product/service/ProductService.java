@@ -5,6 +5,7 @@ import br.com.microservice.productapi.config.exception.ValidationException;
 import br.com.microservice.productapi.modules.category.service.CategoryService;
 import br.com.microservice.productapi.modules.product.dtos.ProductRequest;
 import br.com.microservice.productapi.modules.product.dtos.ProductResponse;
+import br.com.microservice.productapi.modules.product.dtos.ProductStockDTO;
 import br.com.microservice.productapi.modules.product.model.Product;
 import br.com.microservice.productapi.modules.product.repositories.ProductRepository;
 import br.com.microservice.productapi.modules.supplier.service.SupplierService;
@@ -156,4 +157,6 @@ public class ProductService {
       throw new ValidationException(message);
     }
   }
+
+  public void receiveProductStrockMessage(ProductStockDTO product) {}
 }
