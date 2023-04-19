@@ -13,7 +13,7 @@ const env = process.env;
 const PORT = env.PORT || 8082;
 
 connectMongoDb();
-createInitialData();
+createInitialData();   
 connectRabbitMq()
 
 app.use(checkToken);
