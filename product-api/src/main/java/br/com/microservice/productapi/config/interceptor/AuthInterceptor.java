@@ -3,13 +3,17 @@ package br.com.microservice.productapi.config.interceptor;
 import br.com.microservice.productapi.modules.jwt.service.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.ValidationException;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 public class AuthInterceptor implements HandlerInterceptor {
 
   private static final String AUTHORIZATION = "Authorization";
+  private static final String TRANSACTIONAL_ID = "transectionalid";
 
   @Autowired
   private JwtService jwtService;
@@ -24,9 +28,13 @@ public class AuthInterceptor implements HandlerInterceptor {
       return true;
     }
 
+    if (ObjectUtils.isEmpty(request.getHeader(TRANSACTIONAL_ID))) {
+      throw new ValidationException("The transectionid header id required.");
+    }
+
     var authorization = request.getHeader(AUTHORIZATION);
     jwtService.validateAuthorization(authorization);
-
+    request.setAttribute("serviceid", UUID.randomUUID().toString());
     return true;
   }
 

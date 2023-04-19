@@ -1,29 +1,49 @@
 package br.com.microservice.productapi.modules.product.service;
 
+import br.com.microservice.productapi.config.Requestutil;
 import br.com.microservice.productapi.config.SuccessResponse;
 import br.com.microservice.productapi.config.exception.ValidationException;
 import br.com.microservice.productapi.modules.category.service.CategoryService;
+import br.com.microservice.productapi.modules.product.dtos.ProductCheckStockRequest;
+import br.com.microservice.productapi.modules.product.dtos.ProductQuantityDTO;
 import br.com.microservice.productapi.modules.product.dtos.ProductRequest;
 import br.com.microservice.productapi.modules.product.dtos.ProductResponse;
+import br.com.microservice.productapi.modules.product.dtos.ProductSalesResponse;
 import br.com.microservice.productapi.modules.product.dtos.ProductStockDTO;
 import br.com.microservice.productapi.modules.product.model.Product;
 import br.com.microservice.productapi.modules.product.repositories.ProductRepository;
+import br.com.microservice.productapi.modules.sales.client.SalesClient;
+import br.com.microservice.productapi.modules.sales.dto.SalesConfirmationDTO;
+import br.com.microservice.productapi.modules.sales.dto.SalesProductResponse;
+import br.com.microservice.productapi.modules.sales.enums.SalesStatus;
+import br.com.microservice.productapi.modules.sales.rabbitmq.SalesConfirmationSender;
 import br.com.microservice.productapi.modules.supplier.service.SupplierService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class ProductService {
 
   private static final Integer ZERO = 0;
+  private static final String SERVICE_ID = "serviceid";
+  private static final String TRANSACTIONAL_ID = "transectionalid";
+  private static final String AUTHORIZATION = "Authorization";
 
   private final ProductRepository productRepository;
   private final CategoryService categoryService;
   private final SupplierService supplierService;
+  private final SalesConfirmationSender salesConfirmationSender;
+  private final SalesClient salesClient;
+  private final ObjectMapper objectMapper;
 
   public List<ProductResponse> findByAll() {
     return productRepository
@@ -158,5 +178,178 @@ public class ProductService {
     }
   }
 
-  public void receiveProductStrockMessage(ProductStockDTO product) {}
+  public void updateProductStock(ProductStockDTO product) {
+    try {
+      validateStockUpdateData(product);
+      updateStock(product);
+    } catch (Exception e) {
+      log.error(
+        "Error while trying to update stock for message whith error {}",
+        e.getMessage(),
+        e
+      );
+
+      var rejectedMessage = new SalesConfirmationDTO(
+        product.getSalesId(),
+        SalesStatus.REJECTED,
+        product.getTransactionanid()
+      );
+      salesConfirmationSender.sendSalesConfirmation(rejectedMessage);
+    }
+  }
+
+  // The `validateStockUpdateData` method is validating the data received for updating the stock of a
+  // product. It checks if the `ProductStockDTO` object and its `salesId` attribute are not null or
+  // empty, and if the `products` list is not empty. It also checks if each `salesProduct` object in
+  // the `products` list has a non-null `quantity` and `productId` attribute. If any of these
+  // conditions are not met, a `ValidationException` is thrown.
+  @Transactional
+  private void validateStockUpdateData(ProductStockDTO product) {
+    if (
+      ObjectUtils.isEmpty(product) || ObjectUtils.isEmpty(product.getSalesId())
+    ) {
+      throw new ValidationException(
+        "The product data and the sales ID must be informed"
+      );
+    }
+    if (ObjectUtils.isEmpty(product.getProducts())) {
+      throw new ValidationException("The sale's product must be informed.");
+    }
+    product
+      .getProducts()
+      .forEach(salesProduct -> {
+        if (
+          ObjectUtils.isEmpty(salesProduct.getQuantity()) ||
+          ObjectUtils.isEmpty(salesProduct.getProductId())
+        ) {
+          throw new ValidationException(
+            "The product ID and the quantity must be informed."
+          );
+        }
+      });
+  }
+
+  @Transactional
+  private void updateStock(ProductStockDTO product) {
+    var productForUpdate = new ArrayList<Product>();
+    product
+      .getProducts()
+      .forEach(salesProduct -> {
+        var existingProduct = findById(salesProduct.getProductId());
+        validateQuantityInStock(salesProduct, existingProduct);
+        existingProduct.updateStock(salesProduct.getQuantity());
+        productForUpdate.add(existingProduct);
+      });
+
+    if (!ObjectUtils.isEmpty(productForUpdate)) {
+      productRepository.saveAll(productForUpdate);
+      var approvedMessage = new SalesConfirmationDTO(
+        product.getSalesId(),
+        SalesStatus.APPROVED,
+        product.getTransactionanid()
+      );
+      salesConfirmationSender.sendSalesConfirmation(approvedMessage);
+    }
+  }
+
+  private void validateQuantityInStock(
+    ProductQuantityDTO salesProduct,
+    Product existingProduct
+  ) {
+    if (salesProduct.getQuantity() > existingProduct.getQuantityAvailable()) {
+      throw new ValidationException(
+        String.format("The product %s is out of stock", existingProduct.getId())
+      );
+    }
+  }
+
+  public ProductSalesResponse findProductSales(Integer id) {
+    var product = findById(id);
+    try {
+      var sales = getSalesProductId(product.getId());
+      return ProductSalesResponse.of(product, sales.getSalesIds());
+    } catch (Exception e) {
+      throw new ValidationException(
+        "There was an error trying to get the product's sales."
+      );
+    }
+  }
+
+  private SalesProductResponse getSalesProductId(Integer productId) {
+    try {
+      var currentRequest = Requestutil.getCurrentRequest();
+      var token = currentRequest.getHeader(AUTHORIZATION);
+      var transactionid = currentRequest.getHeader(TRANSACTIONAL_ID);
+      var serviceid = currentRequest.getAttribute(SERVICE_ID);
+      log.info(
+        "Sending Get request to orders by productId with data {} | [transactionID: {} | serviceID: {}]",
+        productId,
+        transactionid,
+        serviceid
+      );
+      var response = salesClient
+        .findSalesByProductId(productId, token, transactionid)
+        .orElseThrow(() ->
+          new ValidationException("The sales was not found by this product.")
+        );
+      log.info(
+        "Receiving response from orders by productId with data {} | [transactionID: {} | serviceID: {}]",
+        objectMapper.writeValueAsString(response),
+        transactionid,
+        serviceid
+      );
+      return response;
+    } catch (Exception ex) {
+      throw new ValidationException("The sales could not be found");
+    }
+  }
+
+  public SuccessResponse checkProductsStock(ProductCheckStockRequest request) {
+    try {
+      var currentRequest = Requestutil.getCurrentRequest();
+      var transactionid = currentRequest.getHeader(TRANSACTIONAL_ID);
+      var serviceid = currentRequest.getAttribute(SERVICE_ID);
+      log.info(
+        "Request to POST product stock with data {} | [transactionID: {} | serviceID: {}]",
+        objectMapper.writeValueAsString(request),
+        transactionid,
+        serviceid
+      );
+      if (
+        ObjectUtils.isEmpty(request) ||
+        ObjectUtils.isEmpty(request.getProducts())
+      ) {
+        throw new ValidationException(
+          "The request data and products must be informed."
+        );
+      }
+      request.getProducts().forEach(this::validateStock);
+      var response = SuccessResponse.create("The stock is Ok.");
+      log.info(
+        "Response to POST product stock with data {} | [transactionID: {} | serviceID: {}]",
+        objectMapper.writeValueAsString(response),
+        transactionid,
+        serviceid
+      );
+      return response;
+    } catch (Exception ex) {
+      throw new ValidationException(ex.getMessage());
+    }
+  }
+
+  private void validateStock(ProductQuantityDTO productQuantity) {
+    if (
+      ObjectUtils.isEmpty(productQuantity.getProductId()) ||
+      ObjectUtils.isEmpty(productQuantity.getQuantity())
+    ) {
+      throw new ValidationException("Product ID and quantity must be informed");
+    }
+    var product = findById(productQuantity.getProductId());
+
+    if (productQuantity.getQuantity() > product.getQuantityAvailable()) {
+      throw new ValidationException(
+        String.format("The product %s is out of stock.", product.getId())
+      );
+    }
+  }
 }

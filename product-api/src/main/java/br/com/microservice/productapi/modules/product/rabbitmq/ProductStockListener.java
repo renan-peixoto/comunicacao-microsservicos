@@ -16,13 +16,16 @@ public class ProductStockListener {
 
   private final ProductService productService;
 
+  private final ObjectMapper objectMapper;
+
   @RabbitListener(queues = "${app-config.rabbit.queue.product-stock}")
   public void receiveProductStrockMessage(ProductStockDTO product)
     throws JsonProcessingException {
     log.info(
-      "Recebendo mensagem: {}",
-      new ObjectMapper().writeValueAsString(product)
+      "Recieving message with data: {} and TransactionID: {}",
+      objectMapper.writeValueAsString(product),
+      product.getTransactionanid()
     );
-    productService.receiveProductStrockMessage(product);
+    productService.updateProductStock(product);
   }
 }

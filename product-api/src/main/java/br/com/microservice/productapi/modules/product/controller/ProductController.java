@@ -1,8 +1,10 @@
 package br.com.microservice.productapi.modules.product.controller;
 
 import br.com.microservice.productapi.config.SuccessResponse;
+import br.com.microservice.productapi.modules.product.dtos.ProductCheckStockRequest;
 import br.com.microservice.productapi.modules.product.dtos.ProductRequest;
 import br.com.microservice.productapi.modules.product.dtos.ProductResponse;
+import br.com.microservice.productapi.modules.product.dtos.ProductSalesResponse;
 import br.com.microservice.productapi.modules.product.service.ProductService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -56,16 +58,28 @@ public class ProductController {
     return productService.findByCategoryId(categoryId);
   }
 
-  @DeleteMapping("{id}")
-  public SuccessResponse delete(@PathVariable Integer id) {
-    return productService.delete(id);
-  }
-
   @PutMapping("{id}")
   public ProductResponse update(
     @RequestBody ProductRequest request,
     @PathVariable Integer id
   ) {
     return productService.update(request, id);
+  }
+
+  @DeleteMapping("{id}")
+  public SuccessResponse delete(@PathVariable Integer id) {
+    return productService.delete(id);
+  }
+
+  @PostMapping("check-stock")
+  public SuccessResponse checkProductsStock(
+    @RequestBody ProductCheckStockRequest request
+  ) {
+    return productService.checkProductsStock(request);
+  }
+
+  @GetMapping("{id}/sales")
+  public ProductSalesResponse findProductSales(@PathVariable Integer id) {
+    return productService.findProductSales(id);
   }
 }

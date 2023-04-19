@@ -6,13 +6,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class ProductStockDTO {
+@AllArgsConstructor
+public class ProductCheckStockRequest {
 
-  private String salesId;
-
-  private List<ProductQuantityDTO> products;
-
-  private String transactionanid;
+  List<ProductQuantityDTO> products;
 }
