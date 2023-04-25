@@ -3,10 +3,12 @@ import { promisify } from "util";
 
 import AuthException from "./AuthException.js";
 
-import {RABBIT_MQ_URL} from "../constants/secrets.js";
-import {UNAUTHORIZED, INTERNAL_SERVER_ERROR} from "../constants/httpStatus.js";
+import { API_SECRET } from "../constants/secrets.js";
+import {
+  UNAUTHORIZED,
+  INTERNAL_SERVER_ERROR,
+} from "../constants/httpStatus.js";
 
-// const bearer = "bearer ";
 const emptySpace = " ";
 
 export default async (req, res, next) => {
@@ -14,10 +16,7 @@ export default async (req, res, next) => {
     let { authorization } = req.headers;
 
     if (!authorization) {
-      throw new AuthException(
-        UNAUTHORIZED,
-        "Access token was not informed."
-      );
+      throw new AuthException(UNAUTHORIZED, "Access token was not informed.");
     }
     let accessToken = authorization;
     if (accessToken.includes(emptySpace)) {
@@ -26,10 +25,7 @@ export default async (req, res, next) => {
       accessToken = authorization;
     }
 
-    const decoded = await promisify(jwt.verify)(
-      accessToken,
-      RABBIT_MQ_URL
-    );
+    const decoded = await promisify(jwt.verify)(accessToken, API_SECRET);
     req.authUser = decoded.authUser;
     return next();
   } catch (err) {

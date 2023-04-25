@@ -3,6 +3,7 @@ import express from "express";
 import { connectMongoDb } from "./src/configs/db/mongoDbConfig.js";
 import { createInitialData } from "./src/configs/db/initialData.js";
 import checkToken from "./src/configs/auth/checkToken.js";
+import orderRoutes from "./src/modules/sales/routes/OrderRoutes.js";
 import { connectRabbitMq } from "./src/configs/rabbitmq/rabbitConfig.js";
 
 import { sendProductStockUpdateQueue } from "./src/modules/product/rabbitmq/productStockUpdateSender.js";
@@ -15,7 +16,9 @@ connectMongoDb();
 createInitialData();
 connectRabbitMq();
 
-// app.use(checkToken);
+app.use(express.json());
+app.use(checkToken);
+app.use(orderRoutes);
 
 app.get("/test", (req, res) => {
   try {
