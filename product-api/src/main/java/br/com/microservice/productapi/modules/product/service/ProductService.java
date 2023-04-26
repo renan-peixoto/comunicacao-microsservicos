@@ -1,6 +1,6 @@
 package br.com.microservice.productapi.modules.product.service;
 
-import br.com.microservice.productapi.config.Requestutil;
+import br.com.microservice.productapi.config.RequestUtil;
 import br.com.microservice.productapi.config.SuccessResponse;
 import br.com.microservice.productapi.config.exception.ValidationException;
 import br.com.microservice.productapi.modules.category.service.CategoryService;
@@ -35,7 +35,7 @@ public class ProductService {
 
   private static final Integer ZERO = 0;
   private static final String SERVICE_ID = "serviceid";
-  private static final String TRANSACTIONAL_ID = "transectionalid";
+  private static final String TRANSACTION_ID = "transactionid";
   private static final String AUTHORIZATION = "Authorization";
 
   private final ProductRepository productRepository;
@@ -192,7 +192,7 @@ public class ProductService {
       var rejectedMessage = new SalesConfirmationDTO(
         product.getSalesId(),
         SalesStatus.REJECTED,
-        product.getTransactionanid()
+        product.getTransactionid()
       );
       salesConfirmationSender.sendSalesConfirmation(rejectedMessage);
     }
@@ -246,7 +246,7 @@ public class ProductService {
       var approvedMessage = new SalesConfirmationDTO(
         product.getSalesId(),
         SalesStatus.APPROVED,
-        product.getTransactionanid()
+        product.getTransactionid()
       );
       salesConfirmationSender.sendSalesConfirmation(approvedMessage);
     }
@@ -277,9 +277,9 @@ public class ProductService {
 
   private SalesProductResponse getSalesProductId(Integer productId) {
     try {
-      var currentRequest = Requestutil.getCurrentRequest();
+      var currentRequest = RequestUtil.getCurrentRequest();
       var token = currentRequest.getHeader(AUTHORIZATION);
-      var transactionid = currentRequest.getHeader(TRANSACTIONAL_ID);
+      var transactionid = currentRequest.getHeader(TRANSACTION_ID);
       var serviceid = currentRequest.getAttribute(SERVICE_ID);
       log.info(
         "Sending Get request to orders by productId with data {} | [transactionID: {} | serviceID: {}]",
@@ -306,8 +306,8 @@ public class ProductService {
 
   public SuccessResponse checkProductsStock(ProductCheckStockRequest request) {
     try {
-      var currentRequest = Requestutil.getCurrentRequest();
-      var transactionid = currentRequest.getHeader(TRANSACTIONAL_ID);
+      var currentRequest = RequestUtil.getCurrentRequest();
+      var transactionid = currentRequest.getHeader(TRANSACTION_ID);
       var serviceid = currentRequest.getAttribute(SERVICE_ID);
       log.info(
         "Request to POST product stock with data {} | [transactionID: {} | serviceID: {}]",

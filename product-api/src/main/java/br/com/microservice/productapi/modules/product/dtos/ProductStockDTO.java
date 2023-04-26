@@ -14,5 +14,6 @@ public class ProductStockDTO {
 
   private List<ProductQuantityDTO> products;
 
-  private String transactionanid;
+  private String transactionid;
+
 }

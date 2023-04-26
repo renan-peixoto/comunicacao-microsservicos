@@ -1,12 +1,15 @@
-FROM eclipse-temurin:17-alpine
+FROM maven:3.8.1-openjdk-17-slim as build
 
-WORKDIR /app
+COPY /src /app/src
+COPY .mvn .mvn
+COPY /pom.xml /app
 
-COPY ./target/product-api-0.0.1-SNAPSHOT.jar /app
 
+RUN mvn -f /app/pom.xml clean package -DskipTests
+
+FROM eclipse-temurin:17-jdk-alpine
 EXPOSE 8081
 
-ENTRYPOINT ["java", "-jar", "product-api-0.0.1-SNAPSHOT.jar"]
+COPY --from=build /app/target/*.jar app.jar
 
-CMD ["mvn", "spring-boot:run"]
-
+ENTRYPOINT ["java", "-jar", "/app.jar"]

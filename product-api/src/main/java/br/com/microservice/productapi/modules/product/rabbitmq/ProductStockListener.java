@@ -24,7 +24,7 @@ public class ProductStockListener {
     log.info(
       "Recieving message with data: {} and TransactionID: {}",
       objectMapper.writeValueAsString(product),
-      product.getTransactionanid()
+      product.getTransactionid()
     );
     productService.updateProductStock(product);
   }

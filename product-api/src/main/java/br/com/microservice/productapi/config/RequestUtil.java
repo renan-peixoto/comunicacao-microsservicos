@@ -5,13 +5,13 @@ import jakarta.validation.ValidationException;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-public class Requestutil {
+public class RequestUtil {
 
   public static HttpServletRequest getCurrentRequest() {
     try {
-      return (
-        (ServletRequestAttributes) RequestContextHolder.getRequestAttributes()
-      ).getRequest();
+      return ((ServletRequestAttributes) RequestContextHolder
+              .getRequestAttributes())
+              .getRequest();
     } catch (Exception ex) {
       ex.printStackTrace();
       throw new ValidationException(

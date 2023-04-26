@@ -13,7 +13,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
 
   private static final String AUTHORIZATION = "Authorization";
-  private static final String TRANSACTIONAL_ID = "transectionalid";
+  private static final String TRANSACTION_ID = "transactionid";
 
   @Autowired
   private JwtService jwtService;
@@ -28,8 +28,8 @@ public class AuthInterceptor implements HandlerInterceptor {
       return true;
     }
 
-    if (ObjectUtils.isEmpty(request.getHeader(TRANSACTIONAL_ID))) {
-      throw new ValidationException("The transectionid header id required.");
+    if (ObjectUtils.isEmpty(request.getHeader(TRANSACTION_ID))) {
+      throw new ValidationException("The transactionid header id required.");
     }
 
     var authorization = request.getHeader(AUTHORIZATION);
