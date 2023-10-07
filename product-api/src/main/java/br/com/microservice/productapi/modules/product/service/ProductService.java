@@ -47,10 +47,10 @@ public class ProductService {
 
   public List<ProductResponse> findByAll() {
     return productRepository
-      .findAll()
-      .stream()
-      .map(ProductResponse::of)
-      .collect(Collectors.toList());
+            .findAll()
+            .stream()
+            .map(ProductResponse::of)
+            .collect(Collectors.toList());
   }
 
   public List<ProductResponse> findByName(String name) {

@@ -1,14 +1,14 @@
-version: '3'
-services:
+version: "3"
+services: 
 
   sales-db:
-    image: mongo
-    container_name: sales_rabbit
+    image: mongo:latest
+    container_name: sales-db
+    restart: always
     networks:
       - sales-network
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_DATABASE=sales
       - MONGO_INITDB_ROOT_PASSWORD=123456
     ports:
       - 27017:27017
@@ -17,6 +17,7 @@ services:
   auth-db:
     image: postgres:11
     container_name: auth-db
+    restart: always
     networks:
       - sales-network
     environment:
@@ -28,8 +29,10 @@ services:
 
   sales_rabbit:
     image: rabbitmq:3-management
-    container_name: sales-db
+    container_name: sales_rabbit
     hostname: sales_rabbit
+    networks:
+      - sales-network
     ports:
       - 5672:5672
       - 25676:25676
@@ -41,6 +44,7 @@ services:
   product-db:
     image: postgres:11
     container_name: product-db
+    restart: always
     networks:
       - sales-network
     environment:
@@ -75,20 +79,20 @@ services:
     ports:
       - 8081:8081
 
-  
   sales-api:
     build: './sales-api'
     container_name: sales-api
     depends_on:
       - sales-db
       - sales_rabbit
+      - product-api
     networks:
       - sales-network
     environment:
       - PORT=8082
       - API_SECRET=YXV0aC1hcGktc2VjcmV0LWNvbnRhaW5lci0xMjM0NTY=
-      - MONGO_DB_URL=mongodb://admin:123456@sales-db:27017/?authSource=admin
-      - RABBIT_MQ_URL=amqp://sales_rabbit:5672
+      - MONGO_DB_URL=mongodb://admin:123456@sales-db:27017/
+      - RABBIT_MQ_URL=amqp://guest:guest@sales_rabbit:5672/
       - PRODUCT_API_URL=http://product-api:8081/api/product
       - NODE_ENV=container
     ports:
@@ -99,6 +103,7 @@ services:
     container_name: auth-api
     depends_on:
       - auth-db
+      - product-api
     networks:
       - sales-network
     environment:
@@ -112,8 +117,7 @@ services:
       - NODE_ENV=container
     ports:
       - 8080:8080
-  
-  
+
 networks:
   sales-network:
     driver: bridge
